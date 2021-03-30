@@ -1,0 +1,313 @@
+---
+title: "STAT 228: Assignment 3"
+author: "Solutions"
+date: ""
+output: 
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+---
+
+```{r, warning = FALSE, message = FALSE}
+# Load any R Packages you may need
+library(tidyverse)
+library(Lahman)
+library(fivethirtyeight)
+library(janitor)
+```
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  message = FALSE, warning = FALSE
+)
+```
+
+```{r}
+avocado <- read_csv("~/Dropbox/Teaching/03-Simmons Courses/STAT228-Introduction to Data Science/Assignments/Assignment3/avocado.csv")
+```
+
+
+*Reminder*: Knit early and often!
+
+
+## Exercise 1
+Using the `starwars` dataset in the `tidyverse`, recreate the table given in `starwars_table.png` (the numbers won't be rounded if you run the code in R Markdown instead of the console - that's OK!). The formula for BMI is *mass (in kg)* / (*height (in cm)*/100)^2. [Hint: Use `na.rm = TRUE` in any calculations involving `mean()`!]
+
+**Solution**:
+
+```{r}
+# Type your code here
+starwars %>%
+  group_by(species) %>%
+  summarize(N = n(), 
+            avg_height = mean(height, na.rm = TRUE), 
+            avg_mass = mean(mass, na.rm = TRUE), 
+            avg_bmi = mean(mass / (height/100)^2, na.rm = TRUE)) %>%
+  arrange(desc(N))
+```
+
+
+## Exercise 2
+This exercise uses avocado pricing data from the *Hass Avocado Board* and [Kaggle](https://www.kaggle.com/neuromusic/avocado-prices). The data can be found in `avocado.csv`. Some of the main columns of interest include:
+- `Date` - The date of the observation
+- `AveragePrice` - the average price of an avocado, measured each week
+- `type` - conventional or organic
+- `year` - the year
+- `Region` - the city or region of the observation
+- `Total Volume` - Total number of avocados sold
+
+Also from *Kaggle*: 
+
+> The table represents weekly 2018 retail scan data for National retail volume (units) and price. Retail scan data comes directly from retailers’ cash registers based on actual retail sales of Hass avocados. Starting in 2013, the table reflects an expanded, multi-outlet retail data set. Multi-outlet reporting includes an aggregation of the following channels: grocery, mass, club, drug, dollar and military. The Average Price (of avocados) in the table reflects a per unit (per avocado) cost, even when multiple units (avocados) are sold in bags. The Product Lookup codes (PLU’s) in the table are only for Hass avocados. Other varieties of avocados (e.g. greenskins) are not included in this table.
+
+### (a)
+Let's first look at data for *Boston* and *Los Angeles* (appearing in the data as `LosAngeles`) only. By using the appropriate function to extract only rows for Boston and Los Angeles, create a plot that shows how the Average Price of avocados has changed in each city over time. Use either `color` or `linetype` to distinguish the two cities. 
+
+Describe any associations you see between average avocado price, date, and city. 
+
+**Solution**:
+
+```{r}
+# Type your code here
+avocado %>%
+  filter(region %in% c("Boston", "LosAngeles")) %>%
+  ggplot(aes(x = Date, y = AveragePrice, color = region)) + 
+  geom_line() + 
+  labs(x = "Date", y = "Average Price (in $)", 
+       title = "Avocado Prices in Boston and Los Angeles", 
+       subtitle = "2015-2018", 
+       color = "") + 
+  theme_minimal()
+```
+
+It appears that average avocado prices in Boston have generally been higher than prices in Los Angeles, dating back to 2015. There were two periods in late 2016 and mid-to-late 2017 where Los Angeles had higher average prices. Overall, average avocado prices were lower between 2016 and 2017. 
+
+### (b)
+Now, extract rows from `avocado` for *Boston only*. Using the Boston data and an appropriate summary measure, summarize the `AveragePrice` per `year` and `type` (conventional and organic). Describe any associations you see between the price of an avocado and its type.
+
+**Solution**:
+
+```{r}
+avocado %>%
+  filter(region == "Boston") %>%
+  group_by(year, type) %>%
+  summarize(avg_price = mean(AveragePrice))
+```
+
+Organic avocados tend to be more expensive than conventional avocados. 
+
+### (c)
+Which three regions had the highest single-week average avocado price in 2018? Calculate the maximum `AveragePrice` within each region *for 2018 only*, and report the regions with the *top three* single-week average avocado price, along with the price itself. [Hint: The table should have three rows and two columns; one column for region, and one column for the maximum `AveragePrice`.]
+
+**Solution**:
+
+```{r}
+avocado %>%
+  filter(year == 2018) %>%
+  group_by(region) %>%
+  summarize(max_price = max(AveragePrice)) %>%
+  top_n(3)
+```
+
+
+## Exercise 3
+In early 2020, the Red Sox traded *Mookie Betts* to the Los Angeles Dodgers, and I am still not over it. It turns out that the Red Sox would rather lose games than win games going forward. But *how good is Mookie Betts relative to the league average*? Using data contained in the `Lahman` package, we will take a closer look! 
+
+```{r, eval = FALSE}
+View(Batting)
+View(Master)
+```
+
+Run the following code to obtain `Batting` data for *Mookie Betts only*:
+```{r}
+mookie_data_filter = Batting %>%
+  filter(playerID == "bettsmo01")
+```
+
+### (a)
+While the `Batting` data (and therefore `mookie_data_filter`) do not contain an `age` column, the `Master` data contains the `birthYear` for every Major League Baseball player in history. By using an appropriate `_join()`, calculate Mookie Betts' age in each of his five years, and call this new column `Age`. Return a table named `mookie_data` with the following columns only: *playerID, yearID, Age, teamID, AB, H, BB, HBP, SF, HBP, X2B, X3B, HR*
+
+**Solution**
+
+```{r}
+# Type your code here
+mookie_data = mookie_data_filter %>%
+  left_join(Master, by = "playerID") %>%
+  mutate(Age = yearID - birthYear) %>%
+  select(playerID, yearID, Age, teamID, AB, H, BB, HBP, SF, HBP, X2B, X3B, HR)
+mookie_data
+#View(mookie_data)
+```
+
+### (b)
+Which season was Mookie's best as a batter? One measurement of batting prowess is *on-base plus slugging percentage*, or **OPS**, which is the **sum** of two other statistics: *on-base percentage (OBP)* and *slugging percentage (SLG)*. Using the following code snippet featuring `summarize()`, calculate Mookie's *OBP* and *SLG* **within each of his five years**:
+
+```{r, eval = FALSE}
+summarize(OBP = sum(H + BB + HBP) / sum(AB + BB + SF + HBP),
+          SLG = sum(H + X2B + 2*X3B + 3*HR) / sum(AB))
+```
+
+Then using these two newly-created columns, add a new column called `OPS` which is just the sum of `OBP` and `SLG`. Name the resulting table `mookie_data_OPS`. In which year was Mookie's *highest OPS*?
+
+```{r}
+# Type your code here
+mookie_data_OPS = mookie_data %>%
+  group_by(yearID) %>%
+  summarize(OBP = sum(H + BB + HBP) / sum(AB + BB + SF + HBP),
+            SLG = sum(H + X2B + 2*X3B + 3*HR) / sum(AB)) %>%
+  mutate(OPS = OBP + SLG)
+
+mookie_data_OPS %>%
+  slice_max(order_by = OPS, n = 1)
+```
+
+Mookie Betts had his highest single-season OPS in 2018. 
+ 
+### (c)
+Perform the *exact same calculates from (b)* on the entire `Batting` dataset *for only the years that Mookie Betts played* (`2014:2019`), but name the `OPS` column `lgOPS` instead. Name the resulting table `Batting_OPS`. The purpose of this exercise is to calculate the overall `OPS` for the entire league. [Hint: This should have an identical number of rows and columns as `mookie_data_OPS`, but with the `OPS` column named `lgOPS` instead. ]
+
+**Solution**:
+
+```{r}
+# Type your code here
+Batting_OPS = Batting %>%
+  filter(yearID %in% 2014:2019) %>%
+  group_by(yearID) %>%
+  summarize(OBP = sum(H + BB + HBP) / sum(AB + BB + SF + HBP),
+            SLG = sum(H + X2B + 2*X3B + 3*HR) / sum(AB)) %>%
+  mutate(lgOPS = OBP + SLG)
+
+Batting_OPS
+```
+
+### (d)
+Join `mookie_data_OPS` and `Batting_OPS` (name this table `mookie_join`), and select `yearID`, `OPS` and `lgOPS` only. Rename `OPS` to `mookieOPS`. Explain why this table isn't **tidy**. 
+
+**Solution**:
+
+```{r}
+# Type your code here
+mookie_join = mookie_data_OPS %>%
+  left_join(Batting_OPS, by = "yearID") %>%
+  select(yearID, OPS, lgOPS) %>%
+  rename(mookieOPS = OPS)
+
+mookie_join
+```
+
+This table isn't tidy because there are three columns but only two unique pieces of information: *year* and *OPS*. 
+
+### (e)
+Tidy the `mookie_join` data using `gather()` (name this table `mookie_tidy`) so that there are columns named `yearID`, `type` (a categorical variable containing either *mookieOPS* or *lgOPS*), and `OPS`. Use the resulting *tidy* dataset to make *line plots* of `OPS` with different-colored lines for Mookie's yearly OPS and the overall yearly OPS for the league. Did Mookie Betts appear to be better than league-average in 2014 through 2018?
+
+[Hint: An example final line plot is included in `mookie_vs_league.png`. You can use whichever theme you like!]
+
+**Solution**:
+
+```{r}
+# Type your code here
+mookie_tidy = mookie_join %>%
+  pivot_longer(names_to = "type", 
+               values_to = "OPS", 
+               cols = -yearID)
+
+ggplot(mookie_tidy, aes(x = yearID, y = OPS, color = type)) + 
+  geom_line(size = 1.5) + 
+  labs(x = "Year", y = "OPS (on-base plus slugging percentage)", color = "", 
+       title = "How good is Mookie Betts?", 
+       subtitle = "(compared to league average)") + 
+  scale_color_discrete(labels = c("League", "Mookie Betts")) + #(optional)
+  theme_bw()
+```
+
+Mookie Betts' OPS was better than league average for each year, and sometimes *much* better (e.g., 2016 and 2018). He is a very good baseball player!
+
+
+## Exercise 4
+This exercise will analyze data on Bob Ross paintings using the `bob_ross` data in the `fivethirtyeight` package. Bob Ross was a legendary painter and television host who hosted *The Joy of Painting* for 11 years on PBS. Watch an episode of *The Joy of Painting* [HERE](https://www.youtube.com/watch?v=WT6n0K2zGnA). 
+
+Run the following code to clean the data a bit:
+
+```{r}
+bob_ross = bob_ross %>% 
+  janitor::clean_names() %>% 
+  separate(episode, into = c("season", "episode"), sep = "E") %>% 
+  mutate(season = str_extract(season, "[:digit:]+")) %>% 
+  mutate_at(vars(season, episode), as.integer)
+```
+
+### (a)
+The `bob_ross` dataset currently isn't *tidy*; there is a different column representing an indicator for *every* object he pained in the entire series! Even worse, I tried to tidy the data myself but put emojis where actual code should go...
+
+By replacing my emojis with the appropriate column names in the code below, tidy the data so that there is a column named `object` representing the objects painted, and a column named `present` representing whether or not that object was painted in each episode. 
+
+**Solution**:
+
+```{r}
+# Fix my code! (remove 'eval = FALSE' when you're done)
+bob_ross_tidy = bob_ross %>%
+  pivot_longer(names_to = "object", values_to = "present", cols = c(-season, -episode, -episode_num, -title)) %>%
+  filter(present == 1) %>%
+  select(-present)
+
+head(bob_ross_tidy)
+```
+
+### (b)
+Create a barplot showing the frequency of **the top 25** objects painted by Bob Ross over the entire run of *The Joy of Painting*, but with the bars arranged in descending order of frequency. What objects appear to be Bob Ross's favorite?
+
+**Solution**:
+
+```{r}
+# Type your code here
+bob_ross_tidy %>%
+  count(object, sort = TRUE) %>%
+  head(25) %>%
+  mutate(object = fct_reorder(object, n)) %>%
+  ggplot(aes(object, n)) +
+  geom_col() + 
+  labs(x = "", y = "Frequency") +
+  coord_flip() + 
+  theme_minimal()
+```
+
+Using `fct_lump()` would also work to get the top 25:
+
+```{r, eval = FALSE}
+bob_ross_tidy %>%
+  mutate(object_lump = fct_lump(object, n = 25)) %>%
+  filter(object_lump != "Other") %>%
+  count(object_lump, sort = TRUE) %>%
+  ggplot(aes(x = fct_reorder(object_lump, n), y = n)) +
+  geom_col() + 
+  labs(x = "", y = "Frequency") +
+  coord_flip() + 
+  theme_minimal()
+```
+
+Bob Ross seems to *really enjoy* painting happy little trees! On the other hand, he paints waves and ocean objects much less frequently. 
+
+### (c)
+In which paintings did Bob Ross paint the most objects? Calculate the total number of objects painted *per painting*, and return a table that gives the `title` of the paintings with the *top 3* total number of objects painted, along with the number of objects. 
+
+**Solution**:
+
+```{r}
+# Type your code here
+bob_ross_tidy %>%
+  group_by(title) %>%
+  summarize(N_objects = n()) %>%
+  slice_max(order_by = N_objects, n = 3)
+```
+
+`count()` would also work:
+
+```{r}
+bob_ross_tidy %>%
+  count(title) %>%
+  slice_max(order_by = n, n = 3)
+```
+
+
+
